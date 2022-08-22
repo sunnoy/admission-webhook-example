@@ -17,11 +17,11 @@ spec:
       serviceAccount: admission-webhook-example-sa
       containers:
         - name: admission-webhook-example
-          image: cnych/admission-webhook-example:v1
+          image: sunnoy/admission-webhook-example:v1
           imagePullPolicy: Always
           args:
-            - -tlsCertFile=/etc/webhook/certs/cert.pem
-            - -tlsKeyFile=/etc/webhook/certs/key.pem
+            - -tlsCertFile=/etc/webhook/certs/tls.crt
+            - -tlsKeyFile=/etc/webhook/certs/tls.key
             - -alsologtostderr
             - -v=4
             - 2>&1

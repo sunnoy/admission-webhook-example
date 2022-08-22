@@ -1,4 +1,4 @@
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: mutating-webhook-example-cfg
@@ -6,17 +6,21 @@ metadata:
     app: admission-webhook-example
 webhooks:
   - name: mutating-example.qikqiak.com
+    sideEffects: None
+    admissionReviewVersions: 
+      - "v1"
     clientConfig:
       service:
         name: admission-webhook-example-svc
         namespace: default
         path: "/mutate"
-      caBundle: ${CA_BUNDLE}
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURDRENDQWZDZ0F3SUJBZ0lVZGdyY3ZaV20xYitQQmN1QlJMWGFMNzZneE5Jd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0hERWFNQmdHQTFVRUF4TVJUWGtnUlhoaGJYQnNaU0JUYVdkdVpYSXdIaGNOTWpJd09ESXlNVEkwT1RBdwpXaGNOTWpjd09ESXhNVEkwT1RBd1dqQWNNUm93R0FZRFZRUURFeEZOZVNCRmVHRnRjR3hsSUZOcFoyNWxjakNDCkFTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTWJaWUJZYTRUZ3k4dnAxVmxoWjNmSmUKbkNMWU5OcVZtR0VpTm5jT2dkVkVyUjFuaEpjL01SQmEvQWhxckc0ZjNGNXA0SmlnM2JGUVVmbTZNNm1jbTlTeQpVTXBzQW43QjJLNmxva1hwVGZPMSt0YkY2VHhsKzRVQmFBbXNabzlobzRmU2xrM3BVUHh6eDdOVFNaMEZwUHNpClJ1Mno3WmlqOEkrRG9EWGlLNnV4NEMrM3Q0TVFwUUdhVk83aEZ1czkxWFdDQllWV3lsZHM4d1p2Y2M0NFdJSlMKK1JOb0ZCZ214SmpiZVdjb0g5T1IrZ3FYZ0p0M0pzT2ZUQXI0TmkwdmQ4c3lmSFdPTzB3WHRKMlBSajVGbVMzNApSLzBmODZ3Y1FjM1dwcEx2c203dDV1anRMS0VLYUVWWWdTMmlQZ3VVNjdtYjl5a2xMZGhOTmRnUVNxRER4bzBDCkF3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0VHTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3SFFZRFZSME8KQkJZRUZML1JMYkxKV2xHMDJHT1E1Q2lOcWp0bCtBNkdNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUJvNHBmbgpCOFJTRXA5QUxTckhGU3c0M2I4bTE4NTJ1dk9rbW1RL1BNb04wNVRiVHJsQUJUUVRTSUVOb0FrME04Z3FUZU9aCnU0ZnRCUDdZR3g5K1lhYWxrU2IrMlRpQ1NIV2d2ODlFMVovS2lLYVk5M3NjNVpyelhlL1Mza0FLZDRGeWV4L3QKZ0lDZlg5U25NcjhNVTRtMUhBTW1mKzl4OG1ZblFSQUUwT1ZRWWJBdUVCcjA2Q2cxSk9odnpvWmROeW5reVhvaQpycEZTS3Z4aXhQZnFsalhWYXZHV2ZyMzh4dnZxemVqTzNGeUFPeXExT3VmZnkrM3FFc2tNYXJXM01GTjVkb1VTCmNaTGJ2d1pzM3BVM3pIZWZpTllWV3VEeXArQVozWEQxTGNza2xvVjdLOWVGTlcwQVBBRmdYSlJGcjMzYUFjcm0KNXYvYnNnRDIrYnorcCtHRQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
     rules:
       - operations: [ "CREATE" ]
         apiGroups: ["apps", ""]
         apiVersions: ["v1"]
         resources: ["deployments","services"]
+    # kubectl label namespace default admission-webhook-example=enabled
     namespaceSelector:
       matchLabels:
         admission-webhook-example: enabled

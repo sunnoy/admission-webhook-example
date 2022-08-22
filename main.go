@@ -36,7 +36,9 @@ func main() {
 
 	// define http server and server handler
 	mux := http.NewServeMux()
+	// 改变控制器
 	mux.HandleFunc("/mutate", whsvr.serve)
+	// 验证控制器
 	mux.HandleFunc("/validate", whsvr.serve)
 	whsvr.server.Handler = mux
 

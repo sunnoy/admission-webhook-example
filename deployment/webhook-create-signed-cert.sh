@@ -56,41 +56,37 @@ if [ ! -x "$(command -v openssl)" ]; then
 fi
 
 csrName=${service}.${namespace}
-tmpdir=$(mktemp -d)
-echo "creating certs in tmpdir ${tmpdir} "
 
-cat <<EOF >> ${tmpdir}/csr.conf
-[req]
-req_extensions = v3_req
-distinguished_name = req_distinguished_name
-[req_distinguished_name]
-[ v3_req ]
-basicConstraints = CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-extendedKeyUsage = serverAuth
-subjectAltName = @alt_names
-[alt_names]
-DNS.1 = ${service}
-DNS.2 = ${service}.${namespace}
-DNS.3 = ${service}.${namespace}.svc
+# 生成 server.csr， 以及 PEM 编码密钥的 server-key.pem，用于待生成的证书
+cat <<EOF | cfssl genkey - | cfssljson -bare server
+{
+  "hosts": [
+    "${service}",
+    "${service}.${namespace}",
+    "${service}.${namespace}.svc"
+  ],
+  "CN": "${service}.${namespace}",
+  "key": {
+    "algo": "ecdsa",
+    "size": 256
+  }
+}
 EOF
-
-openssl genrsa -out ${tmpdir}/server-key.pem 2048
-openssl req -new -key ${tmpdir}/server-key.pem -subj "/CN=${service}.${namespace}.svc" -out ${tmpdir}/server.csr -config ${tmpdir}/csr.conf
 
 # clean-up any previously created CSR for our service. Ignore errors if not present.
 kubectl delete csr ${csrName} 2>/dev/null || true
 
 # create  server cert/key CSR and  send to k8s API
 cat <<EOF | kubectl create -f -
-apiVersion: certificates.k8s.io/v1beta1
+apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
 metadata:
   name: ${csrName}
 spec:
+  signerName: "xylink.com/webhook"
   groups:
   - system:authenticated
-  request: $(cat ${tmpdir}/server.csr | base64 | tr -d '\n')
+  request: $(cat server.csr | base64 | tr -d '\n')
   usages:
   - digital signature
   - key encipherment
@@ -107,6 +103,48 @@ done
 
 # approve and fetch the signed certificate
 kubectl certificate approve ${csrName}
+
+
+# 生成（ca-key.pem）和证书（ca.pem）
+cat <<EOF | cfssl gencert -initca - | cfssljson -bare ca
+{
+  "CN": "My Example Signer",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}
+EOF
+
+cat <<EOF > server-signing-config.json
+{
+    "signing": {
+        "default": {
+            "usages": [
+                "digital signature",
+                "key encipherment",
+                "server auth"
+            ],
+            "expiry": "876000h",
+            "ca_constraint": {
+                "is_ca": false
+            }
+        }
+    }
+}
+EOF
+
+
+kubectl get csr ${csrName} -o jsonpath='{.spec.request}' | \
+  base64 --decode | \
+  cfssl sign -ca ca.pem -ca-key ca-key.pem -config server-signing-config.json - | \
+  cfssljson -bare ca-signed-server
+
+
+kubectl get csr ${csrName} -o json | \
+  jq '.status.certificate = "'$(base64 ca-signed-server.pem | tr -d '\n')'"' | \
+  kubectl replace --raw /apis/certificates.k8s.io/v1/certificatesigningrequests/${csrName}/status -f -
+
 # verify certificate has been signed
 for x in $(seq 10); do
     serverCert=$(kubectl get csr ${csrName} -o jsonpath='{.status.certificate}')
@@ -119,12 +157,15 @@ if [[ ${serverCert} == '' ]]; then
     echo "ERROR: After approving csr ${csrName}, the signed certificate did not appear on the resource. Giving up after 10 attempts." >&2
     exit 1
 fi
-echo ${serverCert} | openssl base64 -d -A -out ${tmpdir}/server-cert.pem
 
 
-# create the secret with CA cert and server cert/key
-kubectl create secret generic ${secret} \
-        --from-file=key.pem=${tmpdir}/server-key.pem \
-        --from-file=cert.pem=${tmpdir}/server-cert.pem \
-        --dry-run -o yaml |
+kubectl get csr ${csrName} -o jsonpath='{.status.certificate}' \
+    | base64 --decode > server.crt
+
+
+kubectl create secret tls ${secret} \
+        --cert server.crt \
+        --key server-key.pem \
+        --dry-run=client -o yaml |
     kubectl -n ${namespace} apply -f -
+

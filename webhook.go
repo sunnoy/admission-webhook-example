@@ -340,6 +340,8 @@ func (whsvr *WebhookServer) serve(w http.ResponseWriter, r *http.Request) {
 
 	var admissionResponse *v1beta1.AdmissionResponse
 	ar := v1beta1.AdmissionReview{}
+
+	// 将请求body数据反序列化到 AdmissionReview 对象
 	if _, _, err := deserializer.Decode(body, nil, &ar); err != nil {
 		glog.Errorf("Can't decode body: %v", err)
 		admissionResponse = &v1beta1.AdmissionResponse{
