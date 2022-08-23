@@ -83,7 +83,7 @@ kind: CertificateSigningRequest
 metadata:
   name: ${csrName}
 spec:
-  signerName: "xylink.com/webhook"
+  signerName: "ddddd.com/webhook"
   groups:
   - system:authenticated
   request: $(cat server.csr | base64 | tr -d '\n')
